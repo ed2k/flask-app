@@ -1,4 +1,5 @@
 import datetime as dt
+from re import T
 from sqlalchemy import *
 from sqlalchemy.orm import (scoped_session, sessionmaker, relationship,
                             backref)
@@ -50,10 +51,37 @@ class User(Model):
         return '<User({username!r})>'.format(username=self.username)
 
 
-class FavoriterAssoc(Model):
-    __tablename__ = "favoriter_assoc"
-    favoriter = Column(Integer, ForeignKey("user.id"), primary_key=True)
-    favorited_article = Column(Integer, ForeignKey("article.id"), primary_key=True)
+class UserProfile(Model):
+    __tablename__ = 'userprofile'
+
+    # id is needed for primary join, it does work with SurrogatePK class
+    id = Column(Integer, primary_key=True)
+
+    user_id = reference_col('users', nullable=False)
+    user = relationship('User', backref=backref('profile', uselist=False))
+
+    @property
+    def following(self):
+        # if current_user:
+        #     return current_user.profile.is_following(self)
+        return False
+
+    @property
+    def username(self):
+        return self.user.username
+
+    @property
+    def bio(self):
+        return self.user.bio
+
+    @property
+    def image(self):
+        return self.user.image
+
+    @property
+    def email(self):
+        return self.user.email
+
 
 class TagAssoc(Model):
     __tablename__ = "tag_assoc"
@@ -62,6 +90,8 @@ class TagAssoc(Model):
 
 
 class Tags(Model):
+    """lowercase a to z and dash
+    """
     __tablename__ = 'tags'
 
     id = Column(Integer, primary_key=True)
@@ -71,56 +101,20 @@ class Tags(Model):
         return self.tagname
 
 
-class Comment(Model):
-    __tablename__ = 'comment'
-
-    id = Column(Integer, primary_key=True)
-    body = Column(Text)
-    createdAt = Column(DateTime, nullable=False, default=dt.datetime.utcnow)
-    updatedAt = Column(DateTime, nullable=False, default=dt.datetime.utcnow)
-    author_id = reference_col('users', nullable=False)
-    author = relationship('User', backref=backref('comments'))
-    article_id = reference_col('article', nullable=False)
-
-
 class Article(Model):
     __tablename__ = 'article'
 
     id = Column(Integer, primary_key=True)
+    # unqiue of titles, middle stage for transition from title to tagList
     slug = Column(Text, unique=True)
-    title = Column(String(100), nullable=False)
-    description = Column(Text, nullable=False)
+    # single line of lowercase a to z, dash, one space
+    title = Column(String(200))
     body = Column(Text)
     createdAt = Column(DateTime, nullable=False, default=dt.datetime.utcnow)
     updatedAt = Column(DateTime, nullable=False, default=dt.datetime.utcnow)
-    author_id = reference_col('users', nullable=False)
-    author = relationship('User', backref=backref('articles'))
-    favoriters = relationship(
-        'User',
-        secondary='favoriter_assoc',
-        backref='favorites',
-        lazy='dynamic')
 
     tagList = relationship(
         'Tags', secondary='tag_assoc', backref='articles')
-
-    comments = relationship('Comment', backref=backref('article'), lazy='dynamic')
-
-    def favourite(self, profile):
-        if not self.is_favourite(profile):
-            self.favoriters.append(profile)
-            return True
-        return False
-
-    def unfavourite(self, profile):
-        if self.is_favourite(profile):
-            self.favoriters.remove(profile)
-            return True
-        return False
-
-    def is_favourite(self, profile):
-        #return bool(self.query.filter(favoriter_assoc.c.favoriter == profile.id).count())
-        return False
 
     def add_tag(self, tag):
         if tag not in self.tagList:
@@ -134,10 +128,81 @@ class Article(Model):
             return True
         return False
 
-    @property
-    def favoritesCount(self):
-        return len(self.favoriters.all())
 
-    @property
-    def favorited(self):
-        return False
+
+'''
+CREATE TABLE favoriter_assoc (
+	favoriter INTEGER, 
+	favorited_article INTEGER, 
+	FOREIGN KEY(favorited_article) REFERENCES article (id), 
+	FOREIGN KEY(favoriter) REFERENCES user (id)
+);
+
+CREATE TABLE alembic_version (
+	version_num VARCHAR(32) NOT NULL, 
+	CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+);
+CREATE TABLE tags (
+	id INTEGER NOT NULL, 
+	tagname VARCHAR(100), 
+	PRIMARY KEY (id)
+);
+CREATE TABLE users (
+	id INTEGER NOT NULL, 
+	username VARCHAR(80) NOT NULL, 
+	email VARCHAR(100) NOT NULL, 
+	password BLOB, 
+	created_at DATETIME NOT NULL, 
+	updated_at DATETIME NOT NULL, 
+	bio VARCHAR(300), 
+	image VARCHAR(120), 
+	PRIMARY KEY (id), 
+	UNIQUE (email), 
+	UNIQUE (username)
+);
+CREATE TABLE userprofile (
+	id INTEGER NOT NULL, 
+	user_id INTEGER NOT NULL, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(user_id) REFERENCES users (id)
+);
+CREATE TABLE article (
+	id INTEGER NOT NULL, 
+	slug TEXT, 
+	title VARCHAR(200), 
+	body TEXT, 
+	"createdAt" DATETIME NOT NULL, 
+	"updatedAt" DATETIME NOT NULL, 
+	PRIMARY KEY (id)
+);
+CREATE TABLE followers_assoc (
+	follower INTEGER, 
+	followed_by INTEGER, 
+	FOREIGN KEY(followed_by) REFERENCES userprofile (user_id), 
+	FOREIGN KEY(follower) REFERENCES userprofile (user_id)
+);
+CREATE TABLE comment (
+	id INTEGER NOT NULL, 
+	body TEXT, 
+	"createdAt" DATETIME NOT NULL, 
+	"updatedAt" DATETIME NOT NULL, 
+	author_id INTEGER NOT NULL, 
+	article_id INTEGER NOT NULL, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(article_id) REFERENCES article (id), 
+	FOREIGN KEY(author_id) REFERENCES userprofile (id)
+);
+CREATE TABLE favoritor_assoc (
+	favoriter INTEGER, 
+	favorited_article INTEGER, 
+	FOREIGN KEY(favorited_article) REFERENCES article (id), 
+	FOREIGN KEY(favoriter) REFERENCES userprofile (id)
+);
+CREATE TABLE tag_assoc (
+	tag INTEGER, 
+	article INTEGER, 
+	FOREIGN KEY(article) REFERENCES article (id), 
+	FOREIGN KEY(tag) REFERENCES tags (id)
+);
+
+'''

@@ -1,0 +1,13 @@
+{
+  allEmployees {
+    edges {
+      node {
+        id
+        name
+        department {
+          name
+        }
+      }
+    }
+  }
+}

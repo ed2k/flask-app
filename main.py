@@ -62,16 +62,19 @@ def api_articles():
 @app.route('/api/articles', methods=('POST',))
 def make_article():
     print(request.get_data())
+    print(request.headers.get('Authorization'))
+    aid = request.headers.get('Authorization', 'a anony').split()[1].split(':')[0]
+    # user = db_session.query(User).filter_by(username=aid).first()
+    # if not user:
+    #     return "user not found", 404
     data = request.get_json(force=True)
+    data = data['article']
     article = Article()
     article.title = data['title']
-    article.description = data['description']
-    article.body = data['body']    
-    # body, title, description, tagList=None
-    print(request.headers)
-    # article = Article(title=title, description=description, body=body,
-    #                   author=current_user.profile)
-    tagList = data['tagList']
+    article.body = data['body']
+    # body, title, tagList=None
+
+    tagList = data.get('tagList')
     if tagList is not None:
         for tag in tagList:
             mtag = db_session.query(Tags).filter_by(tagname=tag).first()
@@ -171,4 +174,4 @@ def shutdown_session(exception=None):
     db_session.remove()
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host="0.0.0.0")
