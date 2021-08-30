@@ -5,11 +5,28 @@ from flask import Flask
 from flask_cors import CORS
 from flask import request, jsonify
 from models import User, db_session, Article, Tags
+import mytest
 
 app = Flask(__name__)
 app.debug = True
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///logs/test.db'
 #cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
 CORS(app)
+
+
+@app.route('/test')
+def test_index():
+    return mytest.html()
+
+
+@app.route('/api/update', methods=('POST',))
+def api_update():
+    return mytest.update()
+
+
+@app.route('/api/query')
+def api_query():
+    return mytest.query()
 
 
 @app.route('/api/users', methods=('POST',))
@@ -154,7 +171,7 @@ def complete(request):
 def click(event):
     headers = { 'Content-Type': 'application/json; charset=utf-8' };
     data = {
-      'email': 'sunyin51@gmail.com', 'password':'GodZilla'
+      'email': 's@g.com', 'password':'geez'
     }
     ajax.post(url, headers=headers, data=data, oncomplete=complete)
     document["zone10"].text = "waiting..."

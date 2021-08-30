@@ -5,13 +5,12 @@ from sqlalchemy.orm import (scoped_session, sessionmaker, relationship,
                             backref)
 from sqlalchemy.ext.declarative import declarative_base
 
-engine = create_engine('sqlite:///dev.db', convert_unicode=True)
+engine = create_engine('sqlite:///logs/dev.db', convert_unicode=True)
 db_session = scoped_session(sessionmaker(autocommit=False,
                                          autoflush=False,
                                          bind=engine))
+Model = declarative_base()
 
-from conduit.database import Model
-from conduit.extensions import bcrypt
 
 def reference_col(tablename, nullable=False, pk_name='id', **kwargs):
     """Column that adds primary key foreign key reference.
@@ -40,11 +39,11 @@ class User(Model):
 
     def set_password(self, password):
         """Set password."""
-        self.password = bcrypt.generate_password_hash(password)
+        self.password = password
 
     def check_password(self, value):
         """Check password."""
-        return bcrypt.check_password_hash(self.password, value)
+        return True
 
     def __repr__(self):
         """Represent instance as a unique string."""
@@ -129,6 +128,15 @@ class Article(Model):
         return False
 
 
+# bootstrap
+def my_db_bootstrap():
+    try:
+        db_session.query(Article).first()
+    except:
+        print('create all tables')
+        Model.metadata.create_all(engine)
+
+my_db_bootstrap()
 
 '''
 CREATE TABLE favoriter_assoc (
