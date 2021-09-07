@@ -98,6 +98,8 @@ def action_kv_delete(ev):
         noteText = Dialog("Note update", ok_cancel=True, left=0, top=0)
         print([value])
         noteText.panel <= html.DIV(TEXTAREA(value, cols=80, rows=10))
+        # value_field, scripts = markdown.mark(value)
+        # noteText.panel.html = value_field
 
         # Event handler for "Ok" button
         @bind(noteText.ok_button, "click")
@@ -123,6 +125,8 @@ def action_kv_search(ev):
     # refresh table
     show_kv()
 
+from browser import markdown
+
 def show_kv(*args):
     """Shows the data stored locally, add buttons to add / remove items"""
     zone.clear()
@@ -132,7 +136,6 @@ def show_kv(*args):
         return
 
     table = TABLE()
-
 
     btn_search = BUTTON("Search")
     btn_search.bind('click', action_kv_search)
@@ -146,7 +149,9 @@ def show_kv(*args):
             print(value.find(key)+len(key)+1, key)
             value = value[value.find(key)+len(key)+1:]
             value_field = PRE(value, style=dict(width=600))
-
+            # mk, scripts = markdown.mark(value)
+            # value_field = DIV()
+            # value_field.html = mk
             btn = BUTTON("remove")
             btn_update = BUTTON("update")
             btn.bind('click', action_kv_delete)
@@ -272,13 +277,11 @@ def show_db(ev):
         """Add a row to the table for each iteration on cursor
         When cursor in empty, add a line for new record insertion
         """
-        print('add row')
         res = ev.target.result
         if res:
             v = res.value
             toShow = False
             for key in ["entity", "relation", "eb"]:
-                print(search_terms.get(key), getattr(v, key))
                 if search_terms.get(key) and search_terms[key] == getattr(v, key):
                     toShow = True
                     break
@@ -293,7 +296,6 @@ def show_db(ev):
             getattr(res, "continue")()
         else:
             # add empty row
-            print('empty row')
             row = html.TR()
             row <= (html.TD(html.INPUT(name="new_%s" %key))
                 for key in ["entity", "relation", "eb"])
@@ -317,6 +319,27 @@ dbreq.bind("success", show_db)
 
 
 #---------------------------------
+def split_and_save(texts):
+    buffer = []
+    title = None
+    rtn = chr(10)
+    for line in texts.split(rtn):
+        if line.strip() == '':
+            # reset
+            if title:
+                value = rtn.join(buffer)
+                if not buffer:
+                    value = title
+                storage.setItem(title, value)
+            title = None
+            buffer = []
+            continue
+        if title:
+            buffer.append(line)
+        else:
+            title = line
+
+
 from browser import bind, window, document
 
 load_btn = document["load_file"]
@@ -335,6 +358,7 @@ def file_read(ev):
         save_btn.style.display = "inline"
         # set attribute "download" to file name
         save_btn.attrs["download"] = file.name
+        split_and_save(event.target.result)
 
     # Get the selected file as a DOM File object
     file = load_btn.files[0]
